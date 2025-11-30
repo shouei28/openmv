@@ -6,10 +6,14 @@
 #include "fb_alloc.h"
 #include <string.h>
 
-uint8_t* BEM(int width, int height, int** events, int event_size, uint8_t* output_buffer, bool upside_down) {
+uint8_t* BEM(int width, int height, int** events, int event_size, uint8_t* output_buffer, int rotation) {
     // Step 1: Allocate temporary signed integer array for counting
     int* temp_bem = fb_alloc(width * height * sizeof(int), FB_ALLOC_NO_HINT);
     memset(temp_bem, 0, width * height * sizeof(int));
+    
+    // Normalize rotation to 0-3 range
+    rotation = rotation % 4;
+    if (rotation < 0) rotation += 4;
     
     // Step 2: Accumulate ON/OFF events
     for (int i = 0; i < event_size; i++) {
@@ -17,14 +21,33 @@ uint8_t* BEM(int width, int height, int** events, int event_size, uint8_t* outpu
         int y = events[i][4];
         int type = events[i][0];
         
-        // Flip coordinates if upside down
-        if (upside_down) {
-            x = width - 1 - x;
-            y = height - 1 - y;
+        // Apply rotation
+        int new_x, new_y;
+        switch (rotation) {
+            case 0:  // No rotation
+                new_x = x;
+                new_y = y;
+                break;
+            case 1:  // 90° clockwise
+                new_x = y;
+                new_y = width - 1 - x;
+                break;
+            case 2:  // 180°
+                new_x = width - 1 - x;
+                new_y = height - 1 - y;
+                break;
+            case 3:  // 270° clockwise (or 90° counter-clockwise)
+                new_x = height - 1 - y;
+                new_y = x;
+                break;
+            default:
+                new_x = x;
+                new_y = y;
+                break;
         }
         
-        if (x >= 0 && x < width && y >= 0 && y < height) {
-            int idx = y * width + x;
+        if (new_x >= 0 && new_x < width && new_y >= 0 && new_y < height) {
+            int idx = new_y * width + new_x;
             
             if (type == 0) {
                 temp_bem[idx]--;  // Decrement for negative/OFF events
@@ -45,20 +68,20 @@ uint8_t* BEM(int width, int height, int** events, int event_size, uint8_t* outpu
     return output_buffer;
 }
 
-// Modified function signature to accept upside_down parameter
+// Modified function signature to accept rotation parameter
 mp_obj_t py_bem(size_t n_args, const mp_obj_t *args) {
-    // Extract the arguments: width, height, events, event_size, output_buffer, upside_down
+    // Extract the arguments: width, height, events, event_size, output_buffer, rotation
     mp_obj_t width_obj = args[0];
     mp_obj_t height_obj = args[1];
     mp_obj_t events_obj = args[2];
     mp_obj_t event_size_obj = args[3];
     mp_obj_t output_obj = args[4];  // The pre-allocated output buffer
-    mp_obj_t upside_down_obj = args[5];  // Boolean for upside down orientation
+    mp_obj_t rotation_obj = args[5];  // Integer for rotation (0, 1, 2, 3)
     
     int width = mp_obj_get_int(width_obj);
     int height = mp_obj_get_int(height_obj);
     int event_size = mp_obj_get_int(event_size_obj);
-    bool upside_down = mp_obj_is_true(upside_down_obj);
+    int rotation = mp_obj_get_int(rotation_obj);
     
     // Get the output buffer from numpy array
     mp_buffer_info_t output_bufinfo;
@@ -81,8 +104,8 @@ mp_obj_t py_bem(size_t n_args, const mp_obj_t *args) {
         }
     }
     
-    // Call BEM with the upside_down parameter
-    BEM(width, height, events, event_size, output_buffer, upside_down);
+    // Call BEM with the rotation parameter
+    BEM(width, height, events, event_size, output_buffer, rotation);
     
     // Free the allocated event arrays
     for (int i = 0; i < event_size; i++) {
@@ -94,7 +117,7 @@ mp_obj_t py_bem(size_t n_args, const mp_obj_t *args) {
     return mp_const_none;
 }
 
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_bem_obj, 6, 6, py_bem);  // Changed to 6 args
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_bem_obj, 6, 6, py_bem);  // 6 args
 
 static const mp_rom_map_elem_t bem_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_bem) },
