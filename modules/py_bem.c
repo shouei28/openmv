@@ -6,7 +6,7 @@
 #include "fb_alloc.h"
 #include <string.h>
 
-uint8_t* BEM(int width, int height, int** events, int event_size, uint8_t* output_buffer) {
+uint8_t* BEM(int width, int height, int** events, int event_size, uint8_t* output_buffer, bool upside_down) {
     // Step 1: Allocate temporary signed integer array for counting
     int* temp_bem = fb_alloc(width * height * sizeof(int), FB_ALLOC_NO_HINT);
     memset(temp_bem, 0, width * height * sizeof(int));
@@ -16,6 +16,12 @@ uint8_t* BEM(int width, int height, int** events, int event_size, uint8_t* outpu
         int x = events[i][5];
         int y = events[i][4];
         int type = events[i][0];
+        
+        // Flip coordinates if upside down
+        if (upside_down) {
+            x = width - 1 - x;
+            y = height - 1 - y;
+        }
         
         if (x >= 0 && x < width && y >= 0 && y < height) {
             int idx = y * width + x;
@@ -39,18 +45,20 @@ uint8_t* BEM(int width, int height, int** events, int event_size, uint8_t* outpu
     return output_buffer;
 }
 
-// Modified function signature to accept output buffer
+// Modified function signature to accept upside_down parameter
 mp_obj_t py_bem(size_t n_args, const mp_obj_t *args) {
-    // Extract the arguments: width, height, events, event_size, output_buffer
+    // Extract the arguments: width, height, events, event_size, output_buffer, upside_down
     mp_obj_t width_obj = args[0];
     mp_obj_t height_obj = args[1];
     mp_obj_t events_obj = args[2];
     mp_obj_t event_size_obj = args[3];
     mp_obj_t output_obj = args[4];  // The pre-allocated output buffer
+    mp_obj_t upside_down_obj = args[5];  // Boolean for upside down orientation
     
     int width = mp_obj_get_int(width_obj);
     int height = mp_obj_get_int(height_obj);
     int event_size = mp_obj_get_int(event_size_obj);
+    bool upside_down = mp_obj_is_true(upside_down_obj);
     
     // Get the output buffer from numpy array
     mp_buffer_info_t output_bufinfo;
@@ -73,8 +81,8 @@ mp_obj_t py_bem(size_t n_args, const mp_obj_t *args) {
         }
     }
     
-    // Call BEM with the pre-allocated output buffer
-    BEM(width, height, events, event_size, output_buffer);
+    // Call BEM with the upside_down parameter
+    BEM(width, height, events, event_size, output_buffer, upside_down);
     
     // Free the allocated event arrays
     for (int i = 0; i < event_size; i++) {
@@ -86,7 +94,7 @@ mp_obj_t py_bem(size_t n_args, const mp_obj_t *args) {
     return mp_const_none;
 }
 
-static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_bem_obj, 5, 5, py_bem);  // Changed to 5 args
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_bem_obj, 6, 6, py_bem);  // Changed to 6 args
 
 static const mp_rom_map_elem_t bem_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_bem) },
