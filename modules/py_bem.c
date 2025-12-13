@@ -17,9 +17,9 @@ uint8_t* BEM(int width, int height, int** events, int event_size, uint8_t* outpu
         int y = events[i][4];
         int type = events[i][0];
         
-        // Apply 90° clockwise rotation: (x, y) -> (y, width - 1 - x)
-        int rotated_x = y;
-        int rotated_y = width - 1 - x;
+        // Apply 270° clockwise rotation: (x, y) -> (height - 1 - y, x)
+        int rotated_x = height - 1 - y;
+        int rotated_y = x;
         
         // Apply y-axis flip: (x, y) -> (x, height - 1 - y)
         int new_x = rotated_x;
