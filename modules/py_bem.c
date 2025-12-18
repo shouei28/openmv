@@ -56,7 +56,7 @@ mp_obj_t py_bem(size_t n_args, const mp_obj_t *args) {
   // Get the output buffer from numpy array
   mp_buffer_info_t output_bufinfo;
   mp_get_buffer_raise(output_obj, &output_bufinfo, MP_BUFFER_WRITE);
-  uint8_t *output_buffer = (uint8_t *)output_bufinfo.buf;
+  int8_t *output_buffer = (int8_t *)output_bufinfo.buf;
 
   // Get buffer info from numpy array (events)
   mp_buffer_info_t bufinfo;
